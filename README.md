@@ -14,21 +14,22 @@ A powerful, lightweight CLI tool to overlay text on images with automatic scalin
 
 ## Installation
 
-Ensure you have [Bun](https://bun.sh/) installed on your system.
+Install the package via npm:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/text-over-image.git
-cd text-over-image
+npm install -g text-over-image-cli
+```
 
-# Install dependencies
-bun install
+Or run it directly using npx:
+
+```bash
+npx text-over-image-cli -f <image> -t "Your Message" -p <position>
 ```
 
 ## Usage
 
 ```bash
-bun run index.ts -f <image> -t "Your Message" -p <position> [options]
+toi -f <image> -t "Your Message" -p <position> [options]
 ```
 
 ### Required Arguments
@@ -59,7 +60,7 @@ bun run index.ts -f <image> -t "Your Message" -p <position> [options]
 Add a centered message to a local photo:
 
 ```bash
-bun run index.ts -f photo.jpg -t "Hello World" -p center
+toi -f photo.jpg -t "Hello World" -p center
 ```
 
 ### 2. Remote URL with Bottom Offset
@@ -67,7 +68,7 @@ bun run index.ts -f photo.jpg -t "Hello World" -p center
 Fetch an image from the web and place text 50px from the bottom:
 
 ```bash
-bun run index.ts -f https://picsum.photos/800/600 -t "Adventure Awaits" -p -50 -o travel.jpg
+toi -f https://picsum.photos/800/600 -t "Adventure Awaits" -p -50 -o travel.jpg
 ```
 
 ### 3. Creating a 16:9 Banner
@@ -75,13 +76,13 @@ bun run index.ts -f https://picsum.photos/800/600 -t "Adventure Awaits" -p -50 -
 Resize any image to 1920px wide with a 16:9 aspect ratio and large text:
 
 ```bash
-bun run index.ts -f input.png -t "Header" -p center --width 1920 --aspect 16:9 -s 8% -o banner.jpg
+toi -f input.png -t "Header" -p center --width 1920 --aspect 16:9 -s 8% -o banner.jpg
 ```
 
 ### 4. Custom Font Size (Pixels)
 
 ```bash
-bun run index.ts -f bg.png -t "Small Print" -p top -s 20
+toi -f bg.png -t "Small Print" -p top -s 20
 ```
 
 ## Development
