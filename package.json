@@ -4,7 +4,6 @@
   "description": "A cli to create text overlay image format",
   "module": "index.ts",
   "type": "module",
-  "private": true,
   "bin": {
     "toi": "./dist/index.js"
   },
