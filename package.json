@@ -1,0 +1,33 @@
+{
+  "name": "text-over-image-cli",
+  "version": "0.0.1",
+  "description": "A cli to create text overlay image format",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "toi": "./dist/index.js"
+  },
+  "files": [
+    "./dist/index.js"
+  ],
+  "author": {
+    "name": "ahm0xc",
+    "url": "https://ahm0xc.me"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "bun run .",
+    "build": "bun build ./index.ts --outdir ./dist --target node",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
+}
