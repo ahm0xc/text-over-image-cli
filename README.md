@@ -29,28 +29,30 @@ npx text-over-image-cli -f <image> -t "Your Message" -p <position>
 ## Usage
 
 ```bash
-toi -f <image> -t "Your Message" -p <position> [options]
+toi -f <image> -t "Your Message" [options]
 ```
 
 ### Required Arguments
 
-| Flag | Name         | Description                                                                                       |
-| :--- | :----------- | :------------------------------------------------------------------------------------------------ |
-| `-f` | `--file`     | Path to a local image or a URL (http/https).                                                      |
-| `-t` | `--text`     | The text message to overlay.                                                                      |
-| `-p` | `--position` | Vertical alignment: top, center, bottom, or a number (e.g., 50 for top-down, -100 for bottom-up). |
+| Flag | Name     | Description                                  |
+| :--- | :------- | :------------------------------------------- |
+| `-f` | `--file` | Path to a local image or a URL (http/https). |
+| `-t` | `--text` | The text message to overlay.                 |
 
 ### Optional Arguments
 
-| Flag | Name          | Description                                                 |
-| :--- | :------------ | :---------------------------------------------------------- |
-|      | `--width`     | Force a specific width in pixels.                           |
-|      | `--height`    | Force a specific height in pixels.                          |
-|      | `--aspect`    | Target aspect ratio (e.g., 16:9, 1:1).                      |
-| `-s` | `--font-size` | Custom size in pixels (40) or percentage (5%). Default: 4%. |
-| `-o` | `--output`    | Destination path. Default: a unique temporary file.        |
-|      | `--history`   | Show recent history of generated images.                   |
-| `-h` | `--help`      | Show the detailed help menu.                                |
+| Flag | Name          | Description                                                              |
+| :--- | :------------ | :----------------------------------------------------------------------- |
+| `-p` | `--position`  | Vertical alignment: top, center, bottom, or a number. Default: `center`. |
+|      | `--width`     | Force a specific width in pixels.                                        |
+|      | `--height`    | Force a specific height in pixels.                                       |
+|      | `--aspect`    | Target aspect ratio (e.g., 16:9, 1:1).                                   |
+| `-s` | `--font-size` | Custom size in pixels (40) or percentage (5%). Default: 4%.              |
+| `-r` | `--preset`    | Apply a specific style preset (e.g., "snapchat").                        |
+| `-b` | `--text-background` | Custom background color for the text bar (e.g., "red").             |
+| `-o` | `--output`    | Destination path. Default: a unique temporary file.                      |
+|      | `--history`   | Show recent history of generated images.                                 |
+| `-h` | `--help`      | Show the detailed help menu.                                             |
 
 ---
 
@@ -58,13 +60,37 @@ toi -f <image> -t "Your Message" -p <position> [options]
 
 ### 1. Basic Local Image
 
-Add a centered message to a local photo:
+Add a centered message to a local photo (defaults to center):
 
 ```bash
-toi -f photo.jpg -t "Hello World" -p center
+toi -f photo.jpg -t "Hello World"
 ```
 
-### 2. Remote URL with Bottom Offset
+### 2. Snapchat Style Overlay
+
+Apply the semi-transparent background bar style:
+
+```bash
+toi -f photo.jpg -t "Sunday Vibes" --preset snapchat
+```
+
+### 3. Custom Background Color
+
+Manually add a red background bar to your text:
+
+```bash
+toi -f photo.jpg -t "Warning" -b "rgba(255, 0, 0, 0.6)"
+```
+
+### 4. Overriding a Preset
+
+Use the snapchat preset but override its default background with a solid black one:
+
+```bash
+toi -f photo.jpg -t "Deep Text" --preset snapchat -b "black"
+```
+
+### 5. Remote URL with Bottom Offset
 
 Fetch an image from the web and place text 50px from the bottom:
 

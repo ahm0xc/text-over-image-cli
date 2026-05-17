@@ -44,6 +44,22 @@ async function showHistory() {
   }
 }
 
+interface PresetStyle {
+  position?: string;
+  fontSize?: string;
+  textBackground?: string;
+  stroke?: boolean;
+}
+
+const PRESETS: Record<string, PresetStyle> = {
+  snapchat: {
+    position: "center",
+    fontSize: "2%",
+    textBackground: "rgba(0, 0, 0, 0.5)",
+    stroke: false,
+  },
+};
+
 async function main() {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -55,6 +71,8 @@ async function main() {
       height: { type: "string" },
       aspect: { type: "string" },
       "font-size": { type: "string", short: "s" },
+      preset: { type: "string", short: "r" },
+      "text-background": { type: "string", short: "b" },
       output: { type: "string", short: "o" },
       history: { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -67,47 +85,48 @@ async function main() {
     process.exit(0);
   }
 
-  if (values.help || !values.file || !values.text || !values.position) {
+  if (values.help || !values.file || !values.text) {
     console.log(`
 Text Over Image (toi) - Add text overlays to images with auto-scaling and wrapping.
 
 USAGE:
-  toi -f <image> -t "Your Text" -p <position> [options]
+  toi -f <image> -t "Your Text" [options]
 
 REQUIRED:
   -f, --file <path|url>   Path to a local image file or a remote image URL.
   -t, --text <string>     The text message to overlay on the image.
-  -p, --position <val>    Vertical alignment of the text.
+
+OPTIONS:
+  -p, --position <val>    Vertical alignment of the text. Default: center.
                           Keywords: 'top', 'center', 'bottom'
                           Offsets:  Positive (e.g. "50") for top-down offset.
                                     Negative (e.g. "-100") for bottom-up offset.
-
-OPTIONS:
   --width <px>            Force target width. Upscales or downscales as needed.
   --height <px>           Force target height.
   --aspect <ratio>        Maintain aspect ratio (e.g., "16:9", "4:3", or "1.5").
                           Works with width/height to fill in missing dimensions.
   -s, --font-size <size>  Custom font size. Accepts pixels ("40") or percentage 
                           of image height ("5%"). Default is 4%.
+  -r, --preset <name>     Apply a specific style preset (e.g., "snapchat").
+  -b, --text-background <val> Custom background color/opacity for text bar.
+                          Example: "rgba(0,0,0,0.8)" or "black".
   -o, --output <path>     Destination file path. Default: a temporary file.
   --history               Show recent history of generated images.
   -h, --help              Show this detailed help menu.
 
 EXAMPLES:
-  # Basic usage with local file
-  toi -f photo.jpg -t "Hello World" -p center
+  # Basic usage with local file (defaults to center)
+  toi -f photo.jpg -t "Hello World"
 
-  # From URL with bottom offset and custom size
-  toi -f https://picsum.photos/800 -t "Scenic View" -p -50 -s 6%
-
-  # Show recent activity
-  toi --history
+  # Snapchat preset with custom background opacity
+  toi -f photo.jpg -t "Snap" --preset snapchat -b "rgba(0,0,0,0.8)"
     `);
     process.exit(values.help ? 0 : 1);
   }
 
   try {
-    const outputPath = values.output || path.join(os.tmpdir(), `toi-${randomUUID()}.png`);
+    const outputPath =
+      values.output || path.join(os.tmpdir(), `toi-${randomUUID()}.png`);
 
     let inputBuffer: Buffer;
     if (values.file!.startsWith("http")) {
@@ -130,13 +149,21 @@ EXAMPLES:
       if (values.aspect.includes(":")) {
         const parts = values.aspect.split(":").map(Number);
         const [w, h] = parts;
-        if (parts.length !== 2 || w === undefined || h === undefined || isNaN(w) || isNaN(h) || h === 0) {
+        if (
+          parts.length !== 2 ||
+          w === undefined ||
+          h === undefined ||
+          isNaN(w) ||
+          isNaN(h) ||
+          h === 0
+        ) {
           throw new Error("Invalid aspect ratio format (W:H).");
         }
         ratio = w / h;
       } else {
         ratio = parseFloat(values.aspect);
-        if (isNaN(ratio) || ratio <= 0) throw new Error("Invalid aspect ratio.");
+        if (isNaN(ratio) || ratio <= 0)
+          throw new Error("Invalid aspect ratio.");
       }
 
       if (targetWidth && !targetHeight) {
@@ -150,8 +177,13 @@ EXAMPLES:
     }
 
     if (targetWidth || targetHeight) {
-      console.log(`Resizing to: ${targetWidth || "auto"}x${targetHeight || "auto"}`);
-      image = image.resize(targetWidth, targetHeight, { fit: "cover", withoutEnlargement: false });
+      console.log(
+        `Resizing to: ${targetWidth || "auto"}x${targetHeight || "auto"}`,
+      );
+      image = image.resize(targetWidth, targetHeight, {
+        fit: "cover",
+        withoutEnlargement: false,
+      });
       const { data } = await image.toBuffer({ resolveWithObject: true });
       image = sharp(data);
       metadata = await image.metadata();
@@ -160,17 +192,28 @@ EXAMPLES:
     const width = metadata.width || 0;
     const height = metadata.height || 0;
 
+    // Apply Preset and User Overrides
+    const preset = values.preset ? PRESETS[values.preset] : undefined;
+    if (values.preset && !preset) {
+      throw new Error(`Unknown preset: ${values.preset}`);
+    }
+
+    const positionValue = values.position || preset?.position || "center";
+    const fontSizeValue = values["font-size"] || preset?.fontSize;
+    const textBackground = values["text-background"] || preset?.textBackground;
+    const useStroke = preset?.stroke !== undefined ? preset.stroke : true;
+
     let yPos = 0;
     const margin = Math.round(height * 0.1);
 
-    if (values.position === "top") {
+    if (positionValue === "top") {
       yPos = margin;
-    } else if (values.position === "bottom") {
+    } else if (positionValue === "bottom") {
       yPos = height - margin;
-    } else if (values.position === "center") {
+    } else if (positionValue === "center") {
       yPos = height / 2;
     } else {
-      const offset = parseInt(values.position!);
+      const offset = parseInt(positionValue);
       if (isNaN(offset)) throw new Error("Invalid position value.");
       yPos = offset >= 0 ? offset : height + offset;
     }
@@ -178,13 +221,13 @@ EXAMPLES:
     let fontSize: number;
     const defaultFontSize = Math.round(height * 0.04);
 
-    if (values["font-size"]) {
-      if (values["font-size"].endsWith("%")) {
-        const percent = parseFloat(values["font-size"].replace("%", ""));
+    if (fontSizeValue) {
+      if (fontSizeValue.endsWith("%")) {
+        const percent = parseFloat(fontSizeValue.replace("%", ""));
         if (isNaN(percent)) throw new Error("Invalid font-size percentage.");
         fontSize = Math.round(height * (percent / 100));
       } else {
-        fontSize = parseInt(values["font-size"]);
+        fontSize = parseInt(fontSizeValue);
         if (isNaN(fontSize)) throw new Error("Invalid font-size.");
       }
     } else {
@@ -208,13 +251,20 @@ EXAMPLES:
     }
     lines.push(currentLine.trim());
 
-    const lineHeight = fontSize * 1.2;
-    const totalTextHeight = lines.length * lineHeight;
-    const startY = yPos - totalTextHeight / 2 + fontSize / 2;
+    const lineHeight = fontSize * 1.1;
+    const totalTextContentHeight = (lines.length - 1) * lineHeight + fontSize;
+    const startY = yPos - totalTextContentHeight / 2 + fontSize * 0.8;
 
     const tspans = lines
-      .map((line, i) => `<tspan x="50%" dy="${i === 0 ? 0 : lineHeight}">${line}</tspan>`)
+      .map(
+        (line, i) =>
+          `<tspan x="50%" dy="${i === 0 ? 0 : lineHeight}">${line}</tspan>`,
+      )
       .join("");
+
+    const bgPadding = fontSize * 0.4;
+    const bgHeight = totalTextContentHeight + bgPadding * 2;
+    const bgY = yPos - bgHeight / 2;
 
     const svgText = `
       <svg width="${width}" height="${height}">
@@ -226,10 +276,10 @@ EXAMPLES:
             font-family: sans-serif;
             text-anchor: middle;
             paint-order: stroke;
-            stroke: black;
-            stroke-width: ${Math.round(fontSize / 12)}px;
+            ${useStroke ? `stroke: black; stroke-width: ${Math.round(fontSize / 12)}px;` : ""}
           }
         </style>
+        ${textBackground ? `<rect x="0" y="${bgY}" width="${width}" height="${bgHeight}" fill="${textBackground}" />` : ""}
         <text x="50%" y="${startY}" class="text">${tspans}</text>
       </svg>
     `;
@@ -240,7 +290,11 @@ EXAMPLES:
       .toFile(outputPath);
 
     console.log(`Saved: ${outputPath}`);
-    await saveToHistory({ file: values.file, text: values.text, output: outputPath });
+    await saveToHistory({
+      file: values.file,
+      text: values.text,
+      output: outputPath,
+    });
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(1);
