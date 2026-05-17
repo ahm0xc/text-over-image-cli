@@ -48,7 +48,8 @@ toi -f <image> -t "Your Message" -p <position> [options]
 |      | `--height`    | Force a specific height in pixels.                          |
 |      | `--aspect`    | Target aspect ratio (e.g., 16:9, 1:1).                      |
 | `-s` | `--font-size` | Custom size in pixels (40) or percentage (5%). Default: 4%. |
-| `-o` | `--output`    | Destination path. Default: output.png.                      |
+| `-o` | `--output`    | Destination path. Default: a unique temporary file.        |
+|      | `--history`   | Show recent history of generated images.                   |
 | `-h` | `--help`      | Show the detailed help menu.                                |
 
 ---
@@ -83,6 +84,12 @@ toi -f input.png -t "Header" -p center --width 1920 --aspect 16:9 -s 8% -o banne
 
 ```bash
 toi -f bg.png -t "Small Print" -p top -s 20
+```
+
+### 5. View Activity History
+
+```bash
+toi --history
 ```
 
 ## Development

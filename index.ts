@@ -3,6 +3,46 @@
 import { parseArgs } from "util";
 import fs from "fs/promises";
 import sharp from "sharp";
+import os from "os";
+import path from "path";
+import { randomUUID } from "crypto";
+
+const HISTORY_DIR = path.join(os.homedir(), ".toi");
+const HISTORY_FILE = path.join(HISTORY_DIR, "history.json");
+
+async function saveToHistory(entry: any) {
+  try {
+    await fs.mkdir(HISTORY_DIR, { recursive: true });
+    let history = [];
+    try {
+      const data = await fs.readFile(HISTORY_FILE, "utf-8");
+      history = JSON.parse(data);
+    } catch (e) {}
+    history.push({ ...entry, timestamp: new Date().toISOString() });
+    if (history.length > 50) history = history.slice(-50);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2));
+  } catch (e) {}
+}
+
+async function showHistory() {
+  try {
+    const data = await fs.readFile(HISTORY_FILE, "utf-8");
+    const history = JSON.parse(data);
+    if (history.length === 0) {
+      console.log("No history found.");
+      return;
+    }
+    console.log("\nRecent History:");
+    history.reverse().forEach((h: any, i: number) => {
+      console.log(`${i + 1}. [${h.timestamp}]`);
+      console.log(`   File:   ${h.file}`);
+      console.log(`   Text:   "${h.text}"`);
+      console.log(`   Output: ${h.output}\n`);
+    });
+  } catch (e) {
+    console.log("No history found.");
+  }
+}
 
 async function main() {
   const { values } = parseArgs({
@@ -15,11 +55,17 @@ async function main() {
       height: { type: "string" },
       aspect: { type: "string" },
       "font-size": { type: "string", short: "s" },
-      output: { type: "string", short: "o", default: "output.png" },
+      output: { type: "string", short: "o" },
+      history: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
     strict: true,
   });
+
+  if (values.history) {
+    await showHistory();
+    process.exit(0);
+  }
 
   if (values.help || !values.file || !values.text || !values.position) {
     console.log(`
@@ -43,7 +89,8 @@ OPTIONS:
                           Works with width/height to fill in missing dimensions.
   -s, --font-size <size>  Custom font size. Accepts pixels ("40") or percentage 
                           of image height ("5%"). Default is 4%.
-  -o, --output <path>     Destination file path. Default: "output.png"
+  -o, --output <path>     Destination file path. Default: a temporary file.
+  --history               Show recent history of generated images.
   -h, --help              Show this detailed help menu.
 
 EXAMPLES:
@@ -53,13 +100,15 @@ EXAMPLES:
   # From URL with bottom offset and custom size
   toi -f https://picsum.photos/800 -t "Scenic View" -p -50 -s 6%
 
-  # Resize to 1080p width with a 16:9 aspect ratio
-  toi -f input.png -t "Banner" -p center --width 1920 --aspect 16:9 -o banner.jpg
+  # Show recent activity
+  toi --history
     `);
     process.exit(values.help ? 0 : 1);
   }
 
   try {
+    const outputPath = values.output || path.join(os.tmpdir(), `toi-${randomUUID()}.png`);
+
     let inputBuffer: Buffer;
     if (values.file!.startsWith("http")) {
       console.log(`Fetching: ${values.file}`);
@@ -188,9 +237,10 @@ EXAMPLES:
     await image
       .composite([{ input: Buffer.from(svgText) }])
       .flatten({ background: { r: 0, g: 0, b: 0 } })
-      .toFile(values.output!);
+      .toFile(outputPath);
 
-    console.log(`Saved: ${values.output}`);
+    console.log(`Saved: ${outputPath}`);
+    await saveToHistory({ file: values.file, text: values.text, output: outputPath });
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(1);
