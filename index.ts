@@ -6,13 +6,31 @@ import sharp from "sharp";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
+import satori from "satori";
 
-const HISTORY_DIR = path.join(os.homedir(), ".toi");
-const HISTORY_FILE = path.join(HISTORY_DIR, "history.json");
+const TOI_DIR = path.join(os.homedir(), ".toi");
+const HISTORY_FILE = path.join(TOI_DIR, "history.json");
+
+async function getFont() {
+  const fontPath = path.join(TOI_DIR, "Roboto-Bold.ttf");
+  try {
+    return await fs.readFile(fontPath);
+  } catch (e) {
+    console.log("Downloading font (Roboto-Bold)...");
+    const res = await fetch(
+      "https://github.com/vercel/satori/raw/main/test/assets/Roboto-Bold.ttf",
+    );
+    if (!res.ok) throw new Error("Failed to download font");
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await fs.mkdir(TOI_DIR, { recursive: true });
+    await fs.writeFile(fontPath, buffer);
+    return buffer;
+  }
+}
 
 async function saveToHistory(entry: any) {
   try {
-    await fs.mkdir(HISTORY_DIR, { recursive: true });
+    await fs.mkdir(TOI_DIR, { recursive: true });
     let history = [];
     try {
       const data = await fs.readFile(HISTORY_FILE, "utf-8");
@@ -203,21 +221,7 @@ EXAMPLES:
     const textBackground = values["text-background"] || preset?.textBackground;
     const useStroke = preset?.stroke !== undefined ? preset.stroke : true;
 
-    let yPos = 0;
     const margin = Math.round(height * 0.1);
-
-    if (positionValue === "top") {
-      yPos = margin;
-    } else if (positionValue === "bottom") {
-      yPos = height - margin;
-    } else if (positionValue === "center") {
-      yPos = height / 2;
-    } else {
-      const offset = parseInt(positionValue);
-      if (isNaN(offset)) throw new Error("Invalid position value.");
-      yPos = offset >= 0 ? offset : height + offset;
-    }
-
     let fontSize: number;
     const defaultFontSize = Math.round(height * 0.04);
 
@@ -235,54 +239,99 @@ EXAMPLES:
     }
     fontSize = Math.max(1, fontSize);
 
-    // Dynamic text wrapping
-    const maxCharsPerLine = Math.floor((width * 1.8) / fontSize);
-    const words = values.text!.split(" ");
-    const lines: string[] = [];
-    let currentLine = "";
+    const fontData = await getFont();
 
-    for (const word of words) {
-      if ((currentLine + word).length > maxCharsPerLine) {
-        lines.push(currentLine.trim());
-        currentLine = word + " ";
-      } else {
-        currentLine += word + " ";
+    let justifyContent = "center";
+    let paddingTop = "0px";
+    let paddingBottom = "0px";
+
+    if (positionValue === "top") {
+      justifyContent = "flex-start";
+      paddingTop = `${margin}px`;
+    } else if (positionValue === "bottom") {
+      justifyContent = "flex-end";
+      paddingBottom = `${margin}px`;
+    } else if (positionValue === "center") {
+      justifyContent = "center";
+    } else {
+      const offset = parseInt(positionValue);
+      if (!isNaN(offset)) {
+        const yPos = offset >= 0 ? offset : height + offset;
+        justifyContent = "flex-start";
+        paddingTop = `${yPos}px`;
       }
     }
-    lines.push(currentLine.trim());
 
-    const lineHeight = fontSize * 1.1;
-    const totalTextContentHeight = (lines.length - 1) * lineHeight + fontSize;
-    const startY = yPos - totalTextContentHeight / 2 + fontSize * 0.8;
-
-    const tspans = lines
-      .map(
-        (line, i) =>
-          `<tspan x="50%" dy="${i === 0 ? 0 : lineHeight}">${line}</tspan>`,
-      )
-      .join("");
-
-    const bgPadding = fontSize * 0.4;
-    const bgHeight = totalTextContentHeight + bgPadding * 2;
-    const bgY = yPos - bgHeight / 2;
-
-    const svgText = `
-      <svg width="${width}" height="${height}">
-        <style>
-          .text {
-            fill: white;
-            font-size: ${fontSize}px;
-            font-weight: bold;
-            font-family: sans-serif;
-            text-anchor: middle;
-            paint-order: stroke;
-            ${useStroke ? `stroke: black; stroke-width: ${Math.round(fontSize / 12)}px;` : ""}
+    const svgText = await satori(
+      {
+        type: "div",
+        props: {
+          style: {
+            display: "flex",
+            flexDirection: "column",
+            height: `${height}px`,
+            width: `${width}px`,
+            justifyContent,
+            alignItems: "center",
+            paddingTop,
+            paddingBottom,
+          },
+          children: [
+            {
+              type: "div",
+              props: {
+                style: {
+                  display: "flex",
+                  padding: `${fontSize * 0.2}px ${fontSize * 0.5}px`,
+                  backgroundColor: textBackground || "transparent",
+                  color: "white",
+                  fontSize: `${fontSize}px`,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  width: textBackground ? "100%" : "auto",
+                  justifyContent: "center",
+                  ...(useStroke
+                    ? {
+                        WebkitTextStroke: `${Math.round(fontSize / 12)}px black`,
+                      }
+                    : {}),
+                },
+                children: values.text,
+              },
+            },
+          ],
+        },
+      },
+      {
+        width,
+        height,
+        fonts: [
+          {
+            name: "Roboto",
+            data: fontData,
+            weight: 700,
+            style: "normal",
+          },
+        ],
+        loadAdditionalAsset: async (code, segment) => {
+          if (code === "emoji") {
+            const codePoint = [...segment]
+              .map((s) => s.codePointAt(0)!.toString(16))
+              .join("-");
+            const emojiUrl = `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/${codePoint}.svg`;
+            try {
+              const res = await fetch(emojiUrl);
+              if (!res.ok) return [];
+              const buffer = Buffer.from(await res.arrayBuffer());
+              return `data:image/svg+xml;base64,${buffer.toString("base64")}`;
+            } catch (e) {
+              return [];
+            }
           }
-        </style>
-        ${textBackground ? `<rect x="0" y="${bgY}" width="${width}" height="${bgHeight}" fill="${textBackground}" />` : ""}
-        <text x="50%" y="${startY}" class="text">${tspans}</text>
-      </svg>
-    `;
+          return [];
+        },
+      },
+    );
 
     await image
       .composite([{ input: Buffer.from(svgText) }])

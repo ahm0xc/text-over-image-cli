@@ -27,6 +27,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "satori": "^0.26.0",
     "sharp": "^0.34.5"
   }
 }
