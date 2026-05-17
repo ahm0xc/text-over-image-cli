@@ -1,6 +1,6 @@
 {
   "name": "text-over-image-cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A cli to create text overlay image format",
   "module": "index.ts",
   "type": "module",
